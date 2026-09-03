@@ -3,37 +3,41 @@
 # ==========================================
 PS1='\[\033[32m\]\u@\h \[\033[33m\]\W\[\033[36m\]`__git_ps1 " (%s)"`\[\033[0m\]\n\$ '
 
-# Dotfiles Management
-alias cbash="${EDITOR:-code} ~/.bashrc"
-alias abash="source ~/.bashrc && echo -e \"\n\e[35mbashrc config applied!\e[0m\n\""
+alias ebash="${EDITOR:-code} ~/.bashrc"
+alias sbash='source ~/.bashrc && printf "\n\033[1;32m[✓] ~/.bashrc reloaded successfully!\033[0m\n\n"'
 
 # ==========================================
 # SYSTEM & NAVIGATION UTILITIES
 # ==========================================
-# Quick System Commands
-alias c="clear"
-alias h="history"
-alias x="exit"
-alias open="explorer ."
-
-# Safe File Operations
-alias rm="rm -i"
-alias rmrf="rm -rf"
-
-# Directory Navigation
+# Navigation
 alias ..="cd .."
 alias ...="cd ../.."
 alias ....="cd ../../.."
 
+# Windows Explorer Integration
+open() { explorer.exe "${1:-.}"; }
+
+# Utilities & Shortcuts
+alias c="clear"
+alias h="history"
+alias x="exit"
+alias md="mkdir -p"
+
+# File Safety
+alias rm="rm -i"
+alias rmf="rm -rf"
+
 # Developer Tools
-alias code.="code ."
+alias c.="code ."
 
 # ==========================================
 # GIT ALIASES
 # ==========================================
+# Core
 alias g="git"
+alias gcl="git clone"
 
-# Status & Log
+# Status, Diff & Log
 alias gs="git status"
 alias gd="git diff"
 alias gl="git log --oneline --graph --decorate --all"
@@ -52,7 +56,6 @@ alias gnew="git switch -c"
 alias gdel="git branch -d"
 
 # Remote Actions
-alias gcl="git clone"
 alias gp="git push"
 alias gpf="git push --force-with-lease"
 alias gpl="git pull --rebase"
@@ -60,12 +63,7 @@ alias gpl="git pull --rebase"
 # ==========================================
 # NODE & PACKAGE MANAGEMENT
 # ==========================================
-# Core NPM Commands
 alias n="npm"
-alias ni="npm install"
-alias nid="npm install -D"
-alias nrm="npm uninstall"
-alias nr="npm run"
 
 # Scripts Quick-Launch
 alias dev="npm run dev"
@@ -80,33 +78,79 @@ alias vite="npm create vite@latest"
 # ==========================================
 # CODE FORMATTING (PRETTIER)
 # ==========================================
-alias format="npx prettier --write '**/*.{js,jsx,ts,tsx,json,css,scss,md}'"
-alias format-all="npx prettier --write ."
-alias format-check="npx prettier --check ."
+_prettier_run() {
+    if [ -f ./node_modules/.bin/prettier ]; then
+        ./node_modules/.bin/prettier "$@"
+    else
+        npx --no-install prettier "$@"
+    fi
+}
+
+alias fmt="_prettier_run --write ."
+alias fmt-check="_prettier_run --check ."
 
 # ==========================================
 # CLEANUP & MAINTENANCE
 # ==========================================
-alias rmnode="rm -rf node_modules"
-alias rmnext="rm -rf .next"
-alias clean-build="rm -rf .next node_modules dist build .turbo"
-alias clean-npm="rm -rf node_modules .next package-lock.json && npm install"
+cn() {
+  local pm="npm" icmd="npm ci" lock="package-lock.json"
 
-# Deep Cleanup (Find and remove all build artifacts recursively)
-alias nuke-deep="find . \( \
-  -name 'node_modules' \
-  -o -name '.next' \
-  -o -name 'dist' \
-  -o -name 'build' \
-  -o -name 'out' \
-  -o -name '.turbo' \
-\) -type d -prune -exec rm -rf '{}' + && echo -e '\n\e[35mdeep clean successfully!\e[0m\n'"
+  if [ -f "pnpm-lock.yaml" ]; then
+    pm="pnpm"; icmd="pnpm install --frozen-lockfile"; lock="pnpm-lock.yaml"
+  elif [ -f "yarn.lock" ]; then
+    pm="yarn"; icmd="yarn install --frozen-lockfile"; lock="yarn.lock"
+  elif [ -f "bun.lockb" ] || [ -f "bun.lock" ]; then
+    pm="bun"; icmd="bun install --frozen-lockfile"; lock="bun.lock*"
+  fi
+
+  case "$1" in
+    node)
+      command rm -rf node_modules
+      printf "\n\033[1;32m[✓] node_modules removed successfully!\033[0m\n\n"
+      ;;
+    next)
+      command rm -rf .next
+      printf "\n\033[1;32m[✓] .next cache removed successfully!\033[0m\n\n"
+      ;;
+    build)
+      command rm -rf .next dist build .turbo .cache
+      printf "\n\033[1;32m[✓] Build artifacts cleaned successfully!\033[0m\n\n"
+      ;;
+    in)
+      printf "\n\033[1;34m[!] Detected package manager: %s\033[0m\n" "$pm"
+      command rm -rf node_modules .next dist build .turbo .cache
+      $icmd
+      printf "\n\033[1;32m[✓] Dependencies installed cleanly!\033[0m\n\n"
+      ;;
+    fresh)
+      printf "\n\033[1;34m[!] Detected package manager: %s\033[0m\n" "$pm"
+      command rm -rf node_modules .next dist build .turbo .cache $lock
+      $pm install
+      printf "\n\033[1;32m[✓] Fresh installation complete!\033[0m\n\n"
+      ;;
+    *)
+      command rm -rf node_modules .next dist build .turbo .cache
+      printf "\n\033[1;32m[✓] Cleanup complete!\033[0m\n\n"
+      ;;
+  esac
+}
+
+nuke-deep() {
+  find . \( \
+    -name 'node_modules' \
+    -o -name '.next' \
+    -o -name 'dist' \
+    -o -name 'build' \
+    -o -name 'out' \
+    -o -name '.turbo' \
+    -o -name '.cache' \
+  \) -type d -prune -exec rm -rf '{}' + && \
+  printf "\n\033[1;31m[✓] Deep clean completed!\033[0m\n\n"
+}
 
 # ==========================================
 # CUSTOM SHELL FUNCTIONS
 # ==========================================
-
-# Setup Prettier with Tailwind Plugin
 pretty() {
     npm install -D prettier prettier-plugin-tailwindcss
 
@@ -115,23 +159,5 @@ pretty() {
     '  "plugins": ["prettier-plugin-tailwindcss"]' \
     '}' > .prettierrc
 
-    echo -e "\n\e[35mprettier plugin added successfully!\e[0m\n"
-}
-
-# Generate shadcn-style Tailwind Merge Utility
-autils() {
-    npm install clsx tailwind-merge
-
-    mkdir -p lib
-
-    cat <<'INNER_EOF' > lib/utils.ts
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-INNER_EOF
-
-    echo -e "\n\e[35mcn helper added!\e[0m\n"
+    printf "\n\033[1;32m[✓] Prettier setup complete!\033[0m\n\n"
 }
